@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Как это работает?</title>
+    <style>
+        body {
+          color: #091834;
+          background-color: #E1ECF9;
+        }
+        h1 {
+          text-align: center;
+        }
+        div {
+          padding: 0 20% 0 20%;
+        }
+        code {
+          font-family: "Courier New", "Courier", monospace;
+          color: #091834;
+        }
+        p {
+          font-size: 18px;
+        }
+        a {
+          color: #091834;
+        }
+    </style>
+</head>
+<body>
+    <h1>Как я это сделал?</h1>
+    <div>
+        <p>Задача доступа к категориям
+            по API и отображения всех публикаций
+            выбранной категории для меня была неочевидной.
+            Для того, чтобы закрепить
+            полученные в ходе решения задачи знания и
+            поделиться ходом мыслей, я создал эту страницу.</p>
+        <p>Я описываю ход событий с самого начала, что во многом повторяет материал
+            лекций. Возможно, кому-то это скучно, поэтому <a href="#insight">> ТУТ <</a> начинается
+        самое интересное.</p>
+        <p>Первое - создаю модель с категориями. Каждую модель я представляю себе как таблицу,
+            поэтому в тексте буду употреблять именно это слово. Вот как она у меня
+            выглядит:
+        </p>
+            <pre>
+            <code>
+                class Categories(models.Model):
+                    CATEGORIES_CHOICES = (
+                        ('news', 'Новости'),
+                        ('economics', 'Экономика'),
+                        ('science', 'Наука'),
+                        ('tech', 'Техника'),
+                        ('it', 'IT'),
+                        ('none', 'Без категории')
+
+                    )
+
+                    title = models.CharField(
+                        max_length=20,
+                        choices=CATEGORIES_CHOICES,
+                        default='none'
+                    )
+
+                    slug = models.SlugField(
+                        max_length=20
+                    )
+
+                    def __str__(self):
+                        return self.title
+            </code>
+            </pre>
+        <p>
+            Я решил, что категории должны выбираться из списка.
+            Поэтому предопределил список по аналогии с полем <code>status</code>
+            в таблице <code>Post</code>. Кстати, зачем нужен <code>slug</code>
+            в этом проекте, я не понял...
+        </p>
+        <p>
+            Следующий шаг - добавляю "столбец" <code>category</code> в таблицу
+            <code>Post</code>. Вот этот кусочек кода (целиком код проекта можно посмотреть
+            на <a href="#">GitHub</a>):
+        </p>
+            <pre>
+            <code>
+                    category = models.ForeignKey(
+                        Categories,
+                        null=True,
+                        blank=True,
+                        on_delete=models.SET_NULL,
+                        related_name='back_to_posts',
+                        default='none'
+                    )
+            </code>
+            </pre>
+        <p>
+            Далее, открываю доступ к таблице с категориями, добавив в
+            <code>admin.py</code>:
+            <pre>
+            <code>
+                    admin.site.register(Categories)
+            </code>
+            </pre>
+        </p>
+        <p>
+            Это необходимо, чтобы через админку заполнить таблицу категориями.
+        </p>
+        <p>
+            Теперь сделаю доступ к категориям через API. В <code>urls.py</code>
+            добавляю новый <code>path</code>:
+            <pre>
+            <code>
+                    path(
+                        'api/categories/',
+                        api_views.CategoriesListView.as_view(),
+                        name='api_categories_list'
+                    )
+            </code>
+            </pre>
+        </p>
+        <p>
+            Соответственно в <code>api\views.py</code> добавляю
+            <code>CategoriesListView</code>:
+            <pre>
+            <code>
+                    class CategoriesListView(generics.ListAPIView):
+                        queryset = Categories.objects.all()
+                        serializer_class = CategoriesSerializer
+            </code>
+            </pre>
+        </p>
+        <p>
+            А в <code>serializers.py</code> добавляю
+            <code>CategoriesSerializer</code>:
+            <pre>
+            <code>
+                    class CategoriesSerializer(serializers.ModelSerializer):
+
+                        class Meta:
+                            model = Categories
+                            fields = [
+                                'title',
+                                'slug'
+                            ]
+            </code>
+            </pre>
+        </p>
+        <p id="insight">
+            Итак, самое интересное. Как сделать фильтрацию по категориям?
+            Меня манил этот загадочный <code>&lt;pk&gt;</code> для доступа
+            к конкретному посту. Я понимаю, что pk - это первичный ключ, но
+            мы же явным образом никуда его не передаём! Как django понимает,
+            что мы хотим именно такого поведения? А если я хочу не
+            <code>&lt;pk&gt;</code>, а <code>&lt;category&gt;</code>. Подстановки "в лоб"
+            ничего не дали и я полез рыться в документации
+            <a href="https://www.django-rest-framework.org/api-guide/filtering"
+               target="_blank">DRF</a>.
+        </p>
+        <p>
+            И бинго! Оказывается, указав <code>URL</code> как
+            <code>api/categories/&lt;category&gt;</code>, мы можем вытащить все, что лежит в
+            <code>&lt;category&gt;</code>. Вот так:
+        </p>
+        <p>
+            <pre>
+            <code>
+                    class CategoriesView(generics.ListAPIView):
+                        serializer_class = PostDetailSerializer
+
+                        def get_queryset(self):
+                            category = self.kwargs['category']
+                            return Post.objects.filter(category__title=category)
+            </code>
+            </pre>
+        </p>
+        <p>
+            <code>kwargs</code> это словарь аргументов. Соответственно, по ключу
+            <code>category</code> там лежит указанная категория. Например, в случае
+            <code>api/categories/news</code> моя переменная <code>category</code>
+            в коде выше будет содержать <code>'news'</code>.
+        </p>
+        <p>
+            Теперь еще несколько хитростей. "Столбец" <code>category</code> в таблице
+            <code>Post</code> при явном обращении к нему содержит не какое-то конкретное
+            значение, а объект класса, в нашем случае объект класса <code>Categories</code>.
+            Другими словами, если фильтровать так:
+            <pre>
+            <code>
+                    def get_queryset(self):
+                        category = self.kwargs['category']
+                        return Post.objects.filter<span style="background-color: #ffb02e">(category=category)</span>
+            </code>
+            </pre>
+        </p>
+        <p>
+            То такой фильтр нам вообще ничего не выдаст. Все из-за разных типов сравниваемых данных.
+            Допускаю, что вышеизложенное все еще малопонятно. Сам я пришел к этому потыкав следующий код:
+            <pre>
+            <code>
+                    >>> from posts.models import Post, Categories
+                    >>> p = Post.objects.first()
+                    >>> c = Categories.objects.all()[5] # 5 - т.к. под этим
+                                                        индексом у меня идет 'news'
+                    >>> p
+                    &lt;Post: Инцидент не исчерпан: чистосердечное
+                    признание облегчает душу&gt;
+                    >>> p.category
+                    &lt;Categories: news&gt;
+                    >>> c
+                    &lt;Categories: news&gt;
+                    >>> p.category == c
+                    True
+                    >>> p.category.title
+                    'news'
+                    >>> c.title
+                    'news'
+                    >>> p.category.title == c.title
+                    True
+                    >>>
+            </code>
+            </pre>
+        </p>
+        <p>
+            Так как в <code>category = self.kwargs['category']</code> мы получаем
+            <code>'news'</code>, т.е. то, что содержится в <code>c.title</code> из
+             кода выше, то и сравнивать это нужно с <code>p.category.title</code>.
+        </p>
+        <p>
+            И снова документация в помощь. Есть способ заглядывать в ячейки одной таблицы
+            из другой. Делается это с помощью двух подчеркиваний <code>__</code>:
+            <pre>
+            <code>
+                    class CategoriesView(generics.ListAPIView):
+                        serializer_class = PostDetailSerializer
+
+                        def get_queryset(self):
+                            category = self.kwargs['category']
+                            return Post.objects.filter(category__title=category)
+            </code>
+            </pre>
+        </p>
+        <p>
+            Теперь все работает! Рад, если изложенное было полезно. Ваши мысли и комментарии готов обсудить в
+            <a href="https://sfpython-web.slack.com/messages/@UGBCDR8BY" target="_blank">Slack</a>.
+        </p>
+    </div>
+</body>
+</html>

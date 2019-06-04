@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Список публикаций</title>
+<style>
+body {
+  background-color: #E1ECF9;
+  overflow: hidden;
+}
+.column {
+  margin-bottom: 10px;
+  margin-right: 10px;
+  padding: 0 10px 0 10px;
+  display: inline-block;
+  vertical-align: top;
+}
+.column1 {
+  width: 60%;
+}
+.column2 {
+  margin-top: 90px;
+  width: 30%;
+  background-color: #B6D2F1;
+  border-radius: 5px;c
+}
+h1 {
+  font-size: 30px;
+  text-align: center;
+}
+h2 {
+  font-size: 20px;
+  padding-left: 10px;
+}
+h3 {
+  color: #091D34;
+  font-size: 30px;
+  text-align: center;
+}
+ul {
+  list-style-type: none;
+}
+.category {
+  background-color: #B6D2F1;
+  border-radius: 2px;
+}
+.how {
+  font-size: 20px;
+  text-align: center;
+}
+</style>
+<div class="column column1">
+<article>
+	<header>
+		<h1>Список всех публикаций</h1>
+	</header>
+    {% for pub in posts %}
+        <h2>{{ pub.title }}</h2>
+        {{ pub.body|truncatewords:10|linebreaks }}
+    <p><span class="category"> &nbsp; Категория: {{ pub.category.get_title_display }} &nbsp; </span></p>
+        <p>
+            Публикация {{ pub.author }} от {{ pub.when_published }}
+        </p>
+    <hr>
+    {% empty %}
+        <h2>Публикаций нет</h2>
+        <p>Чтобы добавить что-то в список, зайдите в админку и добавьте их оттуда.</p>
+    {% endfor %}
+
+</article>
+</div>
+<div class="column column2">
+    <h3>API</h3>
+    <ul>
+        <li><a href="/api/posts/" target="_blank">api/posts/</a><p>Доступ к информации отдельного поста
+            осуществляется путём добавления его id в конец запроса,
+            например, <a href="/api/posts/1" target="_blank">api/posts/1</a>.</p></li>
+
+        <li><a href="/api/categories/" target="_blank">api/categories/</a><p>Доступ ко всем постам определенной категории
+        осуществляется путем добавления title категории в конец запроса, например,
+            <a href="/api/categories/news" target="_blank">api/categories/news</a></p></li>
+    </ul>
+    <p class="how"><a href="/how" style="color: #E1ECF9; text-decoration:none; background-color: #1258DC; padding: 5px 10px 5px 10px;
+    border-radius: 15px
+">Как это работает?</a></p>
+</div>
+<p>Тексты сгенерированы сервисом <a href="https://fish-text.ru" target="_blank">Fish-text</a>.</p>
