@@ -67,7 +67,6 @@ class Post(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name='back_to_posts',
-        default='none'
     )
 
     def __str__(self):
